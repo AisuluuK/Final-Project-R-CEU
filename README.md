@@ -1,1 +1,182 @@
 # Final-Project-R-CEU
+
+---
+title: "FinalProject_v1"
+author: "Aisuluu Kurmanbek kyzy"
+date: "February 14, 2016"
+output: html_document
+---
+
+
+```{r}
+library(knitr)
+opts_chunk$set(
+  echo = FALSE,
+  warning = FALSE,
+  message = FALSE,
+  comment = NA 
+)
+```
+
+```{r, echo=FALSE,  message = FALSE}
+install.packages('nycflights', repos = 'http://cran.us.r-project.org')
+library(nycflights13)
+install.packages('data.table', repos = 'http://cran.us.r-project.org')
+library(data.table)
+install.packages('ggplot2', repos = 'http://cran.us.r-project.org')
+library(ggplot2) 
+install.packages('pander', repos = 'http://cran.us.r-project.org')
+library(pander)
+require(pander)
+require(graphics)
+library(plyr)
+```
+
+##Purpose of the project
+The purpose of the follwiong analysis is to detect the most timely effective airlines.
+Part 1 includes the data formatting and descriptive statistics. Part 2 includes an analysis based on each airline company. Part 3 includes model predicting if a flight will be late by 15+ minutes at the destination based on magnitute of distance. 
+
+###Data formating and merging data sets
+We had merged 2 datasets from the *nycflights* database: *flights* and *airlines*.
+```{r, echo=FALSE}
+dtflights <- data.table(nycflights13::flights)
+dtairlines <- data.table(nycflights13::airlines)
+setkey(dtflights, carrier)
+setkey(dtairlines, carrier)
+dtflights2 <- dtflights[dtairlines]
+dtflights2 <- data.table(dtflights2)
+```
+
+##Exploratory data analysis on the available features
+###Descriptive statistics
+```{r, echo=FALSE}
+summary_dtf <- summary(dtflights)
+#rownames(summary_dtf) <- NULL
+pander(summary_dtf)
+
+```
+
+Let's see the list of companies serving the flights:
+```{r, echo=FALSE}
+counts<-count(dtflights2$name)
+counts<-data.table(counts)
+counts
+```
+
+The distribution of number of flights per airline company is the following:
+```{r, echo=FALSE}
+pander(barplot(counts$freq, names.arg=counts$x ))
+```
+
+So, the top companies with highest number of flights are:
+```{r, echo=FALSE}
+pander(subset(counts, freq > mean(counts$freq)))
+```
+
+It is also interesting to see what is the distribution of the delays from 3 available origins. The origins are:
+```{r, echo=FALSE}
+unique(dtflights2$origin)
+```
+
+The graphs below indicate the distribution of delyaed flights from three origins:
+```{r, echo=FALSE}
+ggplot(dtflights2[origin=='JFK'], aes(x=name, arr_delay)) + geom_boxplot() + ggtitle("John F. Kennedy International Airport") + xlab("Airline Companies") + ylab("Arrival Delay") 
+ggplot(dtflights2[origin=='EWR'], aes(x=name, arr_delay)) + geom_boxplot() + ggtitle("Newark Liberty International Airport")+ xlab("Airline Companies") + ylab("Arrival Delay") 
+ggplot(dtflights2[origin=='LGA'], aes(x=name, arr_delay)) + geom_boxplot() +  ggtitle("LaGuardia Airport")+ xlab("Airline Companies") + ylab("Arrival Delay") 
+```
+
+Based on graphs, it is more likely that the arrival delay is not dependent on the airport. However, we see that the highest outlier's magnitute is observed in **John F. Kennedy International Airport**.
+
+##Analysis on airline companies
+It will be complex to detect the most efficient airline company, due to the fact that there are big sized airline companies serving bigger portion of flights, as a consequence, they have a higher number of flights and higher number of the arrival delays. Therefore, we would like to get average delay based on the airline company serving the flight:
+
+```{r, echo=FALSE}
+
+minavdelay <- dtflights2[, mean(arr_delay, na.rm = TRUE), by = name]
+pander(minavdelay)
+``` 
+
+Let's see the list of 5 companines with highest average arrival delay and the 5 companies with lowest average arrival delay:
+
+TOP 5 companies with highest average arrival delay are:
+
+```{r, echo=FALSE}
+top_delays <- minavdelay[minavdelay$V1 >= minavdelay$V1[head(order(minavdelay$V1, decreasing=TRUE))][5] , ]
+top_delays$name
+```
+
+TOP 5 companies with lowest average arrival delay are:
+
+```{r, echo=FALSE}
+low_delays <- minavdelay[minavdelay$V1 <= minavdelay$V1[head(order(minavdelay$V1, decreasing=FALSE))][5] , ]
+low_delays$name
+```
+
+In addition, we can see the distribution of the average arrival delays is skewed:
+
+```{r, echo=FALSE}
+ggplot(minavdelay, aes(x=V1)) +
+    geom_histogram(binwidth=5, colour="royalblue3", fill="white")
+```
+
+The average of delays is shown below:
+
+```{r, echo=FALSE}
+plot(minavdelay$name, minavdelay$V1,  col="blue", lwd = 5, xlab="Airlines", ylab="Arrival Delay", main="Average of delays")
+```
+
+**The answer to the stated question would be that the most efficient are the ones serving more flights, but remaining with low level of delays.**
+
+Alaska Airlines Inc. and Hawaiian Airlines Inc. have a positive average time of delays, their flights arrived earlier on average by 9.9 minutes and 6.9 minutes consecutively. 
+The average flight number among 16 companies is:
+
+```{r, echo=FALSE}
+mean(counts$freq)
+```
+
+Thus, we see that the number of flights served by the 'fastest' airlines (Alaska Airlines Inc. and Hawaiian Airlines Inc.) is lower than the average among the airline companies.
+
+Let's look for the airline companies serving higher than 80% quantile of number of flights and lower than 20% quantile of minutes of arrival and departure delays:
+
+```{r, echo=FALSE}
+setkey(dtflights2, name)
+setkey(counts, x)
+dtflights3 <- dtflights2[counts]
+dtflights3 <- data.table(dtflights3)
+dtflights4 <- dtflights3[(dtflights3$freq > quantile(counts$freq, 0.8)) & (dtflights3$dep_delay < quantile(dtflights3$dep_delay, 0.2, na.rm = TRUE)) & (dtflights3$arr_delay < quantile(dtflights3$arr_delay, 0.2, na.rm = TRUE)), ]
+dtflights4 <- data.table(dtflights4)
+counts2<-count(dtflights4$name)
+counts2<-data.table(counts2)
+#summary(dtflights4$name)
+barplot(counts2$freq, names.arg=counts2$x )
+```
+
+###Results of the Analysis
+Thus, we see that there are 6 companies matching our criterian. Among these 6 companies the highest number of flights is served by ExpressJet Airlines Inc. *According to this simple analysis we conclude that **ExpressJet Airlines Inc.** is the most efficient airline company.*
+
+##Modeling
+The aim is to predict whether the flight will be late at arrival by more than 15 minutes if the distance is higher. 
+We would like to see if there is a significant positive relationship between longer distance and the late arrivals at the destination. 
+Thus we use arrival delay as LHS variable and distance as RHS variable.
+We will use simple linear model.
+
+```{r, echo=FALSE}
+modelfit <- lm(arr_delay ~ distance, data = dtflights3)
+summary(modelfit)
+```
+
+As a result we obtained negative relationship of low magnitute, in other words, increase in distance decreases the arrival delay. The coefficients are significant, T-values are high, which doesn't allow us to rely on the results. Let's have a look at the graphic plot of the model:
+
+```{r, echo=FALSE}
+(plot(dtflights3$distance, dtflights3$arr_delay, col="blue", lwd = 1, xlab="Distance", ylab="Arrival Delay", main="Linear Model"))
+abline(modelfit, col='red')
+```
+
+The plot above shows that there are outliers and there are no flights with distance of around 3000K and 4000K kilometers. This can be explained by the overseas flights and within continent flights. Let's try to predict the time of arrival delay if we have a new data for distance of 3000 and 1000.
+
+```{r, echo=FALSE}
+#predict(modelfit)
+predict(modelfit, newdata = data.frame(distance = 3000))
+predict(modelfit, newdata = data.frame(distance = 1000))
+```
+For distance = 3000 we obtained expected time of arrival delay to be -0.4278 minutes, which means that it is supposed to arrive earlier, but not being late. For distance = 1000, the expected time of delay is 7.0769 minutes. Thus, our hypothesis is rejected. It is more likely for short distance flights to arrive with delay, rather than long distance flights.
