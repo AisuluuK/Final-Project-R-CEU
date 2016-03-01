@@ -224,5 +224,4 @@ lm1 <- lm(delayed ~ distance + ave_visib + ave_temp + name, data = dtflights5)
 pander(summary(lm1))
 ```
 
-From the regression results, we see that increase in distance is associated with the higher probability of flight being late by more than 15 minutes. increase in average visibility tends to decrease the probaility of 15min delay, average temperature has insignificant results. All of the airline companies tend to have negative correlation with delays, except for Frontier Airlines Inc. However, 
-
+From the regression results, we see that increase in distance is associated with the higher probability of flight being late by more than 15 minutes. increase in average visibility tends to decrease the probaility of 15min delay, average temperature has insignificant results. All of the airline companies tend to have negative correlation with delays, except for Frontier Airlines Inc.
